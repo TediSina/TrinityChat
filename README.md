@@ -66,7 +66,7 @@ To set up and run the development server, follow these steps:
 
 - Ensure you have Python and Django installed on your system.
 - Tailwind CSS and daisyUI are pre-configured with Django-Tailwind.
-- Any additional configurations or environment variables required for development should be specified in the `.env` file (e.g. `SECRET_KEY`).
+- Any additional configurations or environment variables required for development should be specified in the `.env` file (e.g. `SECRET_KEY` & `GEMINI_API_KEY`).
 - The Tailwind and Django development servers need to be run side by side (at the same time).
 
 ## Contributing

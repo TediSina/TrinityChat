@@ -1,1 +1,38 @@
 {% extends "base.html" %}
+{% block content %}
+<div class="max-w-xl mx-auto p-4">
+  <div id="chat-box" class="space-y-2 mb-4 border p-4 h-80 overflow-y-auto bg-gray-100 rounded"></div>
+
+  <form id="chat-form" class="flex">
+    <input type="text" id="message" placeholder="Ask Baboon..." class="flex-1 p-2 border rounded-l" required>
+    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-r">Send</button>
+  </form>
+</div>
+
+<script>
+  const form = document.getElementById('chat-form');
+  const chatBox = document.getElementById('chat-box');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('message');
+    const userMessage = input.value;
+
+    chatBox.innerHTML += `<div><strong>You:</strong> ${userMessage}</div>`;
+    input.value = "";
+
+    const response = await fetch('/chatbot/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: JSON.stringify({ message: userMessage })
+    });
+
+    const data = await response.json();
+    chatBox.innerHTML += `<div><strong>BaboonBot:</strong> ${data.response}</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+</script>
+{% endblock content %}
