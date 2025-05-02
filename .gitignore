@@ -1,0 +1,13 @@
+.env
+__pycache__/
+node_modules
+/static/
+theme/static/css/dist/
+theme/node_modules/
+theme/.tailwind-cache/
+venv/
+env/
+.vscode/
+.DS_Store
+.idea/
+db.sqlite3
