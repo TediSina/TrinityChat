@@ -13,6 +13,12 @@
   const form = document.getElementById('chat-form');
   const chatBox = document.getElementById('chat-box');
 
+  if (!localStorage.getItem('session_id')) {
+    localStorage.setItem('session_id', crypto.randomUUID());
+  }
+
+  const sessionId = localStorage.getItem('session_id');
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = document.getElementById('message');
@@ -27,12 +33,31 @@
         'Content-Type': 'application/json',
         'X-CSRFToken': '{{ csrf_token }}'
       },
-      body: JSON.stringify({ message: userMessage })
+      body: JSON.stringify({ message: userMessage, session_id: sessionId })
     });
 
     const data = await response.json();
     chatBox.innerHTML += `<div><strong>BaboonBot:</strong> ${data.response}</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
   });
+
+  setInterval(() => {
+    fetch('/get_chat_history/', {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": '{{ csrf_token }}'
+      },
+      body: JSON.stringify({ session_id: sessionId })
+    })
+    .then(res => res.json())
+    .then(data => {
+      chatBox.innerHTML = "";
+      data.chat.forEach(msg => {
+        chatBox.innerHTML += `<div><strong>${msg.sender === "user" ? "You" : "BaboonBot"}:</strong> ${msg.message}</div>`;
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+  }, 2000);
 </script>
 {% endblock content %}

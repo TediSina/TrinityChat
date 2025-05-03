@@ -91,3 +91,25 @@ def operator_dashboard(request):
         ChatMessage.objects.create(sender="human", message=msg, session_id=session_id)
 
     return render(request, "chat/dashboard.html", {"messages": messages, "sessions": sessions, "current": session_id})
+
+
+@csrf_exempt
+def get_chat_history(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            session_id = data.get("session_id")
+            if not session_id:
+                return JsonResponse({"error": "Missing session_id"}, status=400)
+
+            messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp")
+            chat_data = [
+                {"sender": msg.sender, "message": msg.message, "timestamp": msg.timestamp.isoformat()}
+                for msg in messages
+            ]
+            return JsonResponse({"chat": chat_data})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Only POST method allowed"}, status=405)

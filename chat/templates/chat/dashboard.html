@@ -1,11 +1,5 @@
-<!-- templates/dashboard.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <title>Operator Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="p-6">
+{% extends 'base.html' %}
+{% block content %}
   <h1 class="text-2xl font-bold mb-4">Operator Dashboard</h1>
 
   <form method="get" class="mb-4">
@@ -16,7 +10,7 @@
     </select>
   </form>
 
-  <div class="border p-4 h-64 overflow-y-scroll mb-4 bg-white rounded shadow">
+  <div id="chat-box" class="border p-4 h-64 overflow-y-scroll mb-4 bg-white rounded shadow" data-session-id="{{ current }}">
     {% for message in messages %}
       <p><strong class="capitalize">{{ message.sender }}:</strong> {{ message.message }}</p>
     {% endfor %}
@@ -27,5 +21,35 @@
     <textarea name="reply" rows="2" class="w-full p-2 border rounded" placeholder="Type human response..."></textarea>
     <button class="mt-2 px-4 py-2 bg-blue-600 text-white rounded">Send</button>
   </form>
-</body>
-</html>
+
+  <script>
+    const chatBox = document.getElementById("chat-box");
+  
+    function fetchChatHistory(sessionId) {
+      fetch("/get_chat_history/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ session_id: sessionId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        chatBox.innerHTML = "";
+        data.chat.forEach(msg => {
+          chatBox.innerHTML += `<p><strong class="capitalize">${msg.sender}:</strong> ${msg.message}</p>`;
+        });
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
+  
+    const sessionId = chatBox.dataset.sessionId;
+  
+    if (sessionId) {
+      setInterval(() => {
+        fetchChatHistory(sessionId);
+      }, 2000);
+    }
+  </script>
+{% endblock %}
