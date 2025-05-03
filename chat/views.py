@@ -76,12 +76,15 @@ def chatbot(request):
             needs_human = escalation_response.text.strip().lower() == "yes"
 
             if keyword_trigger or needs_human:
+                ChatMessage.objects.create(sender="bot", message="I'm escalating this to a human agent. Please hold on a moment.", session_id=session_id)
                 return JsonResponse({"response": "I'm escalating this to a human agent. Please hold on a moment.", "escalated": True})
 
+            ChatMessage.objects.create(sender="bot", message=ai_message, session_id=session_id)
             return JsonResponse({"response": ai_message, "escalated": False})
 
         except Exception as e:
             print(f"Gemini error: {e}")
+            ChatMessage.objects.create(sender="bot", message="Oops! Something went wrong.", session_id=session_id)
             return JsonResponse({"response": "Oops! Something went wrong.", "escalated": False})
 
 
