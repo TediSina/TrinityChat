@@ -112,6 +112,11 @@ def operator_dashboard(request):
     session_id = request.GET.get("session", sessions[0] if sessions else None)
     messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp") if session_id else []
 
+    is_human = False
+    if session_id:
+        chat_session = ChatSession.objects.filter(session_id=session_id).first()
+        is_human = chat_session.is_human if chat_session else False
+
     if request.method == "POST":
         reply = request.POST.get("reply")
         session_id = request.GET.get("session")
@@ -119,7 +124,12 @@ def operator_dashboard(request):
             ChatMessage.objects.create(sender="human", message=reply, session_id=session_id)
             ChatSession.objects.update_or_create(session_id=session_id, defaults={"is_human": True})
 
-    return render(request, "chat/dashboard.html", {"messages": messages, "sessions": sessions, "current": session_id})
+    return render(request, "chat/dashboard.html", {
+        "messages": messages,
+        "sessions": sessions,
+        "current": session_id,
+        "is_human": is_human,
+    })
 
 
 @csrf_exempt
@@ -147,3 +157,13 @@ def get_chat_history(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Only POST method allowed"}, status=405)
+
+
+@csrf_exempt
+def get_session_status(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        session_id = data.get("session_id")
+        session = ChatSession.objects.filter(session_id=session_id).first()
+        is_human = session.is_human if session else False
+        return JsonResponse({"is_human": is_human})

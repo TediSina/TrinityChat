@@ -10,6 +10,14 @@
     </select>
   </form>
 
+  <p id="session-status" class="font-semibold mb-2">
+    {% if is_human %}
+      <span class="text-green-600">🧑‍💻 This session is currently in Human Mode.</span>
+    {% else %}
+      <span class="text-yellow-600">🤖 This session is being handled by the Bot.</span>
+    {% endif %}
+  </p>
+
   <div id="chat-box" class="border p-4 h-64 overflow-y-scroll mb-4 bg-white rounded shadow" data-session-id="{{ current }}">
     {% for message in messages %}
       <p><strong class="capitalize">{{ message.sender }}:</strong> {{ message.message }}</p>
@@ -24,6 +32,8 @@
 
   <script>
     const chatBox = document.getElementById("chat-box");
+    const sessionId = chatBox.dataset.sessionId;
+    const sessionStatus = document.getElementById("session-status");
   
     function fetchChatHistory(sessionId) {
       fetch("/get_chat_history/", {
@@ -44,11 +54,29 @@
       });
     }
   
-    const sessionId = chatBox.dataset.sessionId;
+    function fetchSessionStatus(sessionId) {
+      fetch("/get_session_status/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ session_id: sessionId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.is_human) {
+          sessionStatus.innerHTML = '<span class="text-green-600">🧑‍💻 This session is currently in Human Mode.</span>';
+        } else {
+          sessionStatus.innerHTML = '<span class="text-yellow-600">🤖 This session is being handled by the Bot.</span>';
+        }
+      });
+    }
   
     if (sessionId) {
       setInterval(() => {
         fetchChatHistory(sessionId);
+        fetchSessionStatus(sessionId);
       }, 2000);
     }
   </script>
