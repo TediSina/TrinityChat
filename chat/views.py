@@ -34,8 +34,14 @@ def chatbot(request):
         ChatMessage.objects.create(sender="user", message=user_input, session_id=session_id)
 
         session, created = ChatSession.objects.get_or_create(session_id=session_id)
-        if session.is_human:
-            return
+
+        order_history = data.get("order_history", "").strip()
+
+        if order_history:
+            session.order_history = order_history
+            session.save()
+        else:
+            order_history = session.order_history or ""
 
         try:
             initial_prompt = """
@@ -51,11 +57,11 @@ def chatbot(request):
 
                 "I'm escalating this to a human agent. Please hold on a moment."
 
-                Never make up order details or delivery times.
+                Never make up order details or delivery times, unless they're in the order history.
 
                 Always answer in a casual but respectful tone, and if relevant, include a touch of localized friendliness (e.g. using words like "Faleminderit" or "Të ndihmoj me kënaqësi").
 
-                You're not allowed to give out sensitive info or speculate. Always stay within your knowledge and escalate when unsure.
+                You're not allowed to give out sensitive info or speculate. Always stay within your knowledge (which includes the order history below) and escalate when unsure.
             """
 
             if order_history:
