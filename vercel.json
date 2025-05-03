@@ -1,4 +1,5 @@
 {
+    "version": 2,
     "builds": [
         {
             "src": "TrinityChat/wsgi.py",
@@ -17,6 +18,10 @@
         }
     ],
     "routes": [
+        {
+            "src": "/static/(.*)",
+            "dest": "/static/$1"
+        },
         {
             "src": "/(.*)",
             "dest": "TrinityChat/wsgi.py"
