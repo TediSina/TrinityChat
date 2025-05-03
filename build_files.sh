@@ -1,5 +1,5 @@
-pip install -r requirements.txt
-python manage.py tailwind install
-python manage.py migrate
-python manage.py tailwind build
-python manage.py collectstatic --noinput
+pip3.12 install -r requirements.txt
+python3.12 manage.py tailwind install
+python3.12 manage.py migrate
+python3.12 manage.py tailwind build
+python3.12 manage.py collectstatic --noinput
