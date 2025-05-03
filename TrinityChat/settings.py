@@ -151,13 +151,11 @@ STATIC_URL = 'static/'
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
-    os.path.join(BASE_DIR, 'staticfiles', 'static'),
     os.path.join(BASE_DIR, 'static_src'),
 ]
 
 STATIC_DIRS = [
     os.path.join(BASE_DIR, 'static'),
-    os.path.join(BASE_DIR, 'staticfiles', 'static'),
     os.path.join(BASE_DIR, 'static_src'),
 ]
 
