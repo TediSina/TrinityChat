@@ -54,7 +54,7 @@
     .then(data => {
       chatBox.innerHTML = "";
       data.chat.forEach(msg => {
-        chatBox.innerHTML += `<div><strong>${msg.sender === "user" ? "You" : "BaboonBot"}:</strong> ${msg.message}</div>`;
+        chatBox.innerHTML += `<div><strong class="capitalize">${msg.sender}:</strong> ${msg.message}</div>`;
       });
       chatBox.scrollTop = chatBox.scrollHeight;
     });
