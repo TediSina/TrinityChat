@@ -26,7 +26,7 @@
     const orderHistory = document.getElementById("orderHistory").value;
     const userMessage = input.value;
 
-    chatBox.innerHTML += `<div><strong>You:</strong> ${userMessage}</div>`;
+    chatBox.innerHTML += `<div><strong>User:</strong> ${userMessage}</div>`;
     input.value = "";
 
     const response = await fetch('/chatbot/', {
@@ -39,7 +39,7 @@
     });
 
     const data = await response.json();
-    chatBox.innerHTML += `<div><strong>BaboonBot:</strong> ${data.response}</div>`;
+    chatBox.innerHTML += `<div><strong>Bot:</strong> ${data.response}</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
   });
 

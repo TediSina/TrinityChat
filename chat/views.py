@@ -18,93 +18,94 @@ def index(request):
 
 @csrf_exempt
 def chatbot(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
+    if request.method != 'POST':
+        return JsonResponse({"error": "Invalid request method"}, status=405)
 
-        user_input = data.get("message")
-        if not user_input:
-            return JsonResponse({"error": "No message provided"}, status=400)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-        session_id = data.get("session_id", str(uuid.uuid4()))
-        order_history = data.get("order_history", "").strip()
+    user_input = data.get("message")
+    if not user_input:
+        return JsonResponse({"error": "No message provided"}, status=400)
 
-        ChatMessage.objects.create(sender="user", message=user_input, session_id=session_id)
+    session_id = data.get("session_id", str(uuid.uuid4()))
+    order_history = data.get("order_history", "").strip()
 
-        session, created = ChatSession.objects.get_or_create(session_id=session_id)
+    ChatMessage.objects.create(sender="user", message=user_input, session_id=session_id)
 
-        order_history = data.get("order_history", "").strip()
+    session, _ = ChatSession.objects.get_or_create(session_id=session_id)
+
+    if order_history:
+        session.order_history = order_history
+        session.save()
+    else:
+        order_history = session.order_history or ""
+
+    if session.is_human:
+        return
+
+    try:
+        initial_prompt = """
+            You are Baboon, a helpful, friendly, and professional customer support assistant for the Baboon food delivery platform in Albania.
+
+            Your job is to assist users with:
+            - Delivery status (explain if food is on the way or delayed)
+            - Payment issues (failed payment, refunds, invoice questions)
+            - Menu inquiries (available dishes, dietary info)
+            - Order changes (cancel, update, contact restaurant)
+            - General platform support
+
+            You MUST escalate to a human agent in the following cases:
+            - The user says the food is very late or not delivered after the estimated time
+            - You don't see the order they're talking about in the order history
+            - The user is angry or repeatedly unsatisfied
+            - The issue requires contacting a restaurant or processing a refund
+            - You're unsure how to solve their problem
+
+            When escalating, say:
+            "I'm escalating this to a human agent. Please hold on a moment." in English or in Albanian based on the user's language.
+
+            Rules:
+            - Never invent order details or delivery times. Only use what's in the order history.
+            - Use a respectful, casual tone in all replies.
+            - Do not give out personal information.
+            - Answer based only on the chat and order history below. If unsure, escalate.
+        """
 
         if order_history:
-            session.order_history = order_history
+            initial_prompt += f"\n\nHere is the user's order history:\n{order_history}\n"
+
+        history = ChatMessage.objects.filter(session_id=session_id).order_by("-timestamp")[:5][::-1]
+        chat_history = "\n\n".join(
+            f"{'User' if msg.sender == 'user' else 'Bot'}: {msg.message}" for msg in history
+        )
+
+        full_prompt = f"{initial_prompt}\n\nChat History:\n{chat_history}\n\nUser: {user_input}"
+
+        response = model.generate_content(full_prompt)
+        ai_message = response.text.strip()
+
+        lower_msg = ai_message.lower()
+        keyword_trigger = any(phrase in lower_msg for phrase in [
+            "not sure", "i don't know", "can't help", "escalate", "human agent",
+            "contact support", "i'll pass you to", "do të kaloj te", "nuk jam i sigurt", "nuk mundem"
+        ])
+
+        if keyword_trigger:
+            session.is_human = True
             session.save()
-        else:
-            order_history = session.order_history or ""
-
-        try:
-            initial_prompt = """
-                You are Baboon, a helpful, friendly, and professional customer support assistant for the Baboon food delivery platform in Albania. Your job is to assist users with:
-
-                - Delivery status (explain if food is on the way or delayed)
-                - Payment issues (failed payment, refunds, invoice questions)
-                - Menu inquiries (available dishes, dietary info)
-                - Order changes (cancel, update, contact restaurant)
-                - General platform support
-
-                Be concise and polite. If you're not sure about something or the request requires human intervention, say:
-
-                "I'm escalating this to a human agent. Please hold on a moment."
-
-                Never make up order details or delivery times, unless they're in the order history.
-
-                Always answer in a casual but respectful tone.
-
-                You're not allowed to give out sensitive info or speculate. Always stay within your knowledge (which includes the order and chat history below) and escalate when unsure.
-            """
-
-            if order_history:
-                order_context = f"\n\nHere is the user's order history:\n{order_history.strip()}\n"
-            else:
-                order_context = ""
-
-            history = ChatMessage.objects.filter(session_id=session_id).order_by("-timestamp")[:10][::-1]
-            chat_history = "\n\n"
-            for msg in history:
-                prefix = "User" if msg.sender == "user" else "Bot"
-                chat_history += f"{prefix}: {msg.message}\n"
-
-            full_prompt = initial_prompt + order_context + chat_history + f"User: {user_input}"
-            response = model.generate_content(full_prompt)
-            ai_message = response.text.strip()
-
-            lower_msg = ai_message.lower()
-            keyword_trigger = any(phrase in lower_msg for phrase in [
-                "not sure", "i don't know", "can't help", "escalate", "human agent", "contact support"
-            ])
-
-            escalation_check_prompt = f"""
-                You are monitoring customer support responses. The following response was generated by an AI assistant:
-
-                "{ai_message}"
-
-                Does this message indicate the assistant is uncertain or requires a human agent to continue? Reply with only "yes" or "no".
-            """
-            escalation_response = model.generate_content(escalation_check_prompt)
-            needs_human = escalation_response.text.strip().lower() == "yes"
-
-            if keyword_trigger or needs_human:
-                ChatMessage.objects.create(sender="bot", message="I'm escalating this to a human agent. Please hold on a moment.", session_id=session_id)
-                return JsonResponse({"response": "I'm escalating this to a human agent. Please hold on a moment.", "escalated": True})
-
             ChatMessage.objects.create(sender="bot", message=ai_message, session_id=session_id)
-            return JsonResponse({"response": ai_message, "escalated": False})
+            return JsonResponse({"response": ai_message, "escalated": True})
 
-        except Exception as e:
-            print(f"Gemini error: {e}")
-            ChatMessage.objects.create(sender="bot", message="Oops! Something went wrong.", session_id=session_id)
-            return JsonResponse({"response": "Oops! Something went wrong.", "escalated": False})
+        ChatMessage.objects.create(sender="bot", message=ai_message, session_id=session_id)
+        return JsonResponse({"response": ai_message, "escalated": False})
+
+    except Exception as e:
+        print(f"Gemini error: {e}")
+        ChatMessage.objects.create(sender="bot", message="Oops! Something went wrong.", session_id=session_id)
+        return JsonResponse({"response": "Oops! Something went wrong.", "escalated": False})
 
 
 def operator_dashboard(request):
