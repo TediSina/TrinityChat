@@ -59,9 +59,9 @@ def chatbot(request):
 
                 Never make up order details or delivery times, unless they're in the order history.
 
-                Always answer in a casual but respectful tone, and if relevant, include a touch of localized friendliness (e.g. using words like "Faleminderit" or "Të ndihmoj me kënaqësi").
+                Always answer in a casual but respectful tone.
 
-                You're not allowed to give out sensitive info or speculate. Always stay within your knowledge (which includes the order history below) and escalate when unsure.
+                You're not allowed to give out sensitive info or speculate. Always stay within your knowledge (which includes the order and chat history below) and escalate when unsure.
             """
 
             if order_history:
@@ -69,7 +69,13 @@ def chatbot(request):
             else:
                 order_context = ""
 
-            full_prompt = initial_prompt + order_context + f"\n\nUser: {user_input}"
+            history = ChatMessage.objects.filter(session_id=session_id).order_by("-timestamp")[:10][::-1]
+            chat_history = "\n\n"
+            for msg in history:
+                prefix = "User" if msg.sender == "user" else "Bot"
+                chat_history += f"{prefix}: {msg.message}\n"
+
+            full_prompt = initial_prompt + order_context + chat_history + f"User: {user_input}"
             response = model.generate_content(full_prompt)
             ai_message = response.text.strip()
 
