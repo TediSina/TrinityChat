@@ -11,7 +11,7 @@ model = genai.GenerativeModel('gemini-2.0-flash')
 
 
 def index(request):
-    return render(request, 'theme/index.html', {})
+    return render(request, 'chat/index.html', {})
 
 
 @csrf_exempt
