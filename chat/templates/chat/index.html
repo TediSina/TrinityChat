@@ -3,8 +3,9 @@
 <div class="max-w-xl mx-auto p-4">
   <div id="chat-box" class="space-y-2 mb-4 border p-4 h-80 overflow-y-auto bg-gray-100 rounded"></div>
 
-  <form id="chat-form" class="flex">
+  <form id="chat-form" class="flex flex-col">
     <input type="text" id="message" placeholder="Ask Baboon..." class="flex-1 p-2 border rounded-l" required>
+    <textarea id="orderHistory" placeholder="Paste your order history here..." class="w-full p-2 border rounded mt-2"></textarea>
     <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-r">Send</button>
   </form>
 </div>
@@ -22,6 +23,7 @@
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = document.getElementById('message');
+    const orderHistory = document.getElementById("orderHistory").value;
     const userMessage = input.value;
 
     chatBox.innerHTML += `<div><strong>You:</strong> ${userMessage}</div>`;
@@ -33,7 +35,7 @@
         'Content-Type': 'application/json',
         'X-CSRFToken': '{{ csrf_token }}'
       },
-      body: JSON.stringify({ message: userMessage, session_id: sessionId })
+      body: JSON.stringify({ message: userMessage, session_id: sessionId, order_history: orderHistory })
     });
 
     const data = await response.json();
