@@ -126,11 +126,16 @@ def get_chat_history(request):
                 return JsonResponse({"error": "Missing session_id"}, status=400)
 
             messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp")
+            session = ChatSession.objects.filter(session_id=session_id).first()
+
             chat_data = [
                 {"sender": msg.sender, "message": msg.message, "timestamp": msg.timestamp.isoformat()}
                 for msg in messages
             ]
-            return JsonResponse({"chat": chat_data})
+            return JsonResponse({
+                "chat": chat_data,
+                "order_history": session.order_history if session else ""
+            })
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)

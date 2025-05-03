@@ -43,6 +43,24 @@
     chatBox.scrollTop = chatBox.scrollHeight;
   });
 
+  window.addEventListener('DOMContentLoaded', () => {
+    fetch('/get_chat_history/', {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": '{{ csrf_token }}'
+      },
+      body: JSON.stringify({ session_id: sessionId })
+    })
+    .then(res => res.json())
+    .then(data => {
+      const orderHistoryTextarea = document.getElementById('orderHistory');
+      if (orderHistoryTextarea && data.order_history !== undefined) {
+        orderHistoryTextarea.value = data.order_history;
+      }
+    });
+  });
+
   setInterval(() => {
     fetch('/get_chat_history/', {
       method: "POST",
