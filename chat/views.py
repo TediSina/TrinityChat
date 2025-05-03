@@ -3,7 +3,7 @@ import google.generativeai as genai
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import ChatMessage
+from .models import ChatMessage, ChatSession
 import uuid
 import json
 
@@ -31,6 +31,10 @@ def chatbot(request):
         session_id = data.get("session_id", str(uuid.uuid4()))
 
         ChatMessage.objects.create(sender="user", message=user_input, session_id=session_id)
+
+        session, created = ChatSession.objects.get_or_create(session_id=session_id)
+        if session.is_human:
+            return
 
         try:
             initial_prompt = """
@@ -87,8 +91,11 @@ def operator_dashboard(request):
     messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp") if session_id else []
 
     if request.method == "POST":
-        msg = request.POST.get("reply")
-        ChatMessage.objects.create(sender="human", message=msg, session_id=session_id)
+        reply = request.POST.get("reply")
+        session_id = request.GET.get("session")
+        if session_id and reply:
+            ChatMessage.objects.create(sender="human", message=reply, session_id=session_id)
+            ChatSession.objects.update_or_create(session_id=session_id, defaults={"is_human": True})
 
     return render(request, "chat/dashboard.html", {"messages": messages, "sessions": sessions, "current": session_id})
 

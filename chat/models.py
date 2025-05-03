@@ -10,4 +10,11 @@ class ChatMessage(models.Model):
     session_id = models.CharField(max_length=100)
 
 
+class ChatSession(models.Model):
+    session_id = models.CharField(max_length=100, unique=True)
+    is_human = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 admin.site.register(ChatMessage)
+admin.site.register(ChatSession)
