@@ -1,9 +1,21 @@
 {
-    "builds": [{
-        "src": "TrinityChat/wsgi.py",
-        "use": "@vercel/python",
-        "config": { "maxLambdaSize": "15mb", "runtime": "python3.12" }
-    }],
+    "builds": [
+        {
+            "src": "TrinityChat/wsgi.py",
+            "use": "@vercel/python",
+            "config": {
+                "maxLambdaSize": "15mb",
+                "runtime": "python3.12"
+            }
+        },
+        {
+            "src": "build_files.sh",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "staticfiles"
+            }
+        }
+    ],
     "routes": [
         {
             "src": "/(.*)",
