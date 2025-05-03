@@ -24,6 +24,18 @@
     {% endfor %}
   </div>
 
+  {% if order_history %}
+  <div class="border p-4 bg-gray-50 rounded shadow mb-4">
+    <h2 class="font-semibold text-lg mb-2">🧾 Order History</h2>
+    <pre class="whitespace-pre-wrap text-sm">{{ order_history }}</pre>
+  </div>
+  {% else %}
+    <div class="border p-4 bg-gray-50 rounded shadow mb-4">
+      <h2 class="font-semibold text-lg mb-2">🧾 Order History</h2>
+      <p class="text-sm text-gray-500">No order history available for this session.</p>
+    </div>
+  {% endif %}
+
   <form method="post">
     {% csrf_token %}
     <textarea name="reply" rows="2" class="w-full p-2 border rounded" placeholder="Type human response..."></textarea>

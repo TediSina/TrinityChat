@@ -114,9 +114,12 @@ def operator_dashboard(request):
     messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp") if session_id else []
 
     is_human = False
+    order_history = ""
     if session_id:
         chat_session = ChatSession.objects.filter(session_id=session_id).first()
-        is_human = chat_session.is_human if chat_session else False
+        if chat_session:
+            is_human = chat_session.is_human
+            order_history = chat_session.order_history or ""
 
     if request.method == "POST":
         reply = request.POST.get("reply")
@@ -130,6 +133,7 @@ def operator_dashboard(request):
         "sessions": sessions,
         "current": session_id,
         "is_human": is_human,
+        "order_history": order_history,
     })
 
 
