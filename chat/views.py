@@ -1,8 +1,10 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 import google.generativeai as genai
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from .models import ChatMessage
+import uuid
 import json
 
 
@@ -17,8 +19,18 @@ def index(request):
 @csrf_exempt
 def chatbot(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        user_input = data.get("message", "")
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        user_input = data.get("message")
+        if not user_input:
+            return JsonResponse({"error": "No message provided"}, status=400)
+
+        session_id = data.get("session_id", str(uuid.uuid4()))
+
+        ChatMessage.objects.create(sender="user", message=user_input, session_id=session_id)
 
         try:
             initial_prompt = """
@@ -67,3 +79,15 @@ def chatbot(request):
         except Exception as e:
             print(f"Gemini error: {e}")
             return JsonResponse({"response": "Oops! Something went wrong.", "escalated": False})
+
+
+def operator_dashboard(request):
+    sessions = ChatMessage.objects.values_list("session_id", flat=True).distinct()
+    session_id = request.GET.get("session", sessions[0] if sessions else None)
+    messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp") if session_id else []
+
+    if request.method == "POST":
+        msg = request.POST.get("reply")
+        ChatMessage.objects.create(sender="human", message=msg, session_id=session_id)
+
+    return render(request, "chat/dashboard.html", {"messages": messages, "sessions": sessions, "current": session_id})
