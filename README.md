@@ -38,17 +38,17 @@ To set up and run the development server, follow these steps:
 
 5. **Set the environment variables**
 
-    Create a `.env` file in the root directory of the project then set the variables down below:
+    Create a `.env` file in the root directory of the project then set the variables down below (set the default values for SQLite3):
 
     ```env
     SECRET_KEY = 'YOUR_SECRET_KEY_HERE'
     GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE'
-    DB_ENGINE = 'YOUR_DATABASE_ENGINE_HERE'
-    DB_NAME = 'YOUR_DATABASE_NAME_HERE'
-    DB_USER = 'YOUR_DATABASE_USER_HERE'
-    DB_PASSWORD = 'YOUR_DATABASE_PASSWORD_HERE'
-    DB_HOST = 'YOUR_DATABASE_HOST_HERE'
-    DB_PORT = 'YOUR_DATABASE_PORT_HERE'
+    DB_ENGINE = 'YOUR_DATABASE_ENGINE_HERE' # Default: 'django.db.backends.sqlite3'
+    DB_NAME = 'YOUR_DATABASE_NAME_HERE' # Default: ''
+    DB_USER = 'YOUR_DATABASE_USER_HERE' # Default: ''
+    DB_PASSWORD = 'YOUR_DATABASE_PASSWORD_HERE' # Default: ''
+    DB_HOST = 'YOUR_DATABASE_HOST_HERE' # Default: ''
+    DB_PORT = 'YOUR_DATABASE_PORT_HERE' # Default: ''
     ```
 
 6. **Run Migrations**
