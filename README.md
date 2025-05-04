@@ -48,13 +48,7 @@ To set up and run the development server, follow these steps:
     pip install -r requirements.txt
     ```
 
-4. **Install Tailwind CSS Dependencies**
-
-    ```bash
-    python manage.py tailwind install
-    ```
-
-5. **Set the environment variables**
+4. **Set the environment variables**
 
     Create a `.env` file in the root directory of the project then set the variables down below (set the default values for SQLite3):
 
@@ -67,6 +61,12 @@ To set up and run the development server, follow these steps:
     DB_PASSWORD = 'YOUR_DATABASE_PASSWORD_HERE' # Default: ''
     DB_HOST = 'YOUR_DATABASE_HOST_HERE' # Default: ''
     DB_PORT = 'YOUR_DATABASE_PORT_HERE' # Default: ''
+    ```
+
+5. **Install Tailwind CSS Dependencies**
+
+    ```bash
+    python manage.py tailwind install
     ```
 
 6. **Run Migrations**
