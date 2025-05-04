@@ -73,7 +73,7 @@ To set up and run the development server, follow these steps:
     python manage.py runserver
     ```
 
-9.  **Access the Website**
+9. **Access the Website**
 
     Open your web browser and navigate to `http://127.0.0.1:8000` to view the website.
 
