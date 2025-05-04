@@ -1,10 +1,28 @@
-# TrinityChat
+# 🧠 TrinityChat – Hybrid AI-Human Customer Support for Baboon
 
-Hybrid AI-Human Chat for Customer Support using Django. (TODO)
+**Junction X Tirana 2025 — Challenge: Hybrid AI-Human Chat (by Baboon)**  
+**Team: Code Trinity**  
+**Members:** Tedi Sina (Backend), Klerti Malaj (Frontend), Sara Kaçi (Marketing)
 
-## Description
+TrinityChat is an intelligent customer support platform designed to streamline and elevate the way Baboon engages with its users. Built during Junction X Tirana 2025 by the three-member team Code Trinity, this system blends AI automation with real-time human intervention—ensuring both speed and empathy in customer support.
 
-Hybrid AI-Human Chat for Customer Support using Django... (TODO)
+Using a smart session tracking system, TrinityChat allows Baboon’s support operators to monitor and take over conversations previously handled by an AI chatbot. Admins can seamlessly switch sessions to “human mode” when needed, view chat history in real-time, and access order history to assist users more effectively. All of this is managed through a clean and intuitive admin dashboard.
+
+## 🚀 Technologies Used
+
+- **Django** (backend framework)  
+- **Tailwind CSS & daisyUI** (frontend styling)  
+- **PostgreSQL** (relational database)  
+- **Vercel** (deployment platform)  
+
+## 🔑 Key Features
+
+- 💬 **Live chat system** powered by hybrid AI-human interaction  
+- 🧑‍💻 **Operator dashboard** with session selector, chat history, and reply interface  
+- 📜 **Order history display** for informed customer support  
+- 🔄 **Real-time updates** for messages and session statuses  
+
+TrinityChat embodies the future of customer service for platforms like Baboon—intelligent, responsive, and human-centered.
 
 ## How to Run the Development Server
 
