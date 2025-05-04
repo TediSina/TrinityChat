@@ -36,13 +36,28 @@ To set up and run the development server, follow these steps:
     python manage.py tailwind install
     ```
 
-5. **Run Migrations**
+5. **Set the environment variables**
+
+    Create a `.env` file in the root directory of the project then set the variables down below:
+
+    ```env
+    SECRET_KEY = 'YOUR_SECRET_KEY_HERE'
+    GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY_HERE'
+    DB_ENGINE = 'YOUR_DATABASE_ENGINE_HERE'
+    DB_NAME = 'YOUR_DATABASE_NAME_HERE'
+    DB_USER = 'YOUR_DATABASE_USER_HERE'
+    DB_PASSWORD = 'YOUR_DATABASE_PASSWORD_HERE'
+    DB_HOST = 'YOUR_DATABASE_HOST_HERE'
+    DB_PORT = 'YOUR_DATABASE_PORT_HERE'
+    ```
+
+6. **Run Migrations**
 
     ```bash
     python manage.py migrate
     ```
 
-6. **Start the Tailwind Development Server**
+7. **Start the Tailwind Development Server**
 
     Open a terminal and run:
 
@@ -50,7 +65,7 @@ To set up and run the development server, follow these steps:
     python manage.py tailwind start
     ```
 
-7. **Start the Django Development Server**
+8. **Start the Django Development Server**
 
     In another terminal, run:
 
@@ -58,7 +73,7 @@ To set up and run the development server, follow these steps:
     python manage.py runserver
     ```
 
-8. **Access the Website**
+9.  **Access the Website**
 
     Open your web browser and navigate to `http://127.0.0.1:8000` to view the website.
 
