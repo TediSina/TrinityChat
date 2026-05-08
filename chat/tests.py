@@ -14,6 +14,12 @@ class DashboardViewTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Operator Dashboard")
 
+    def test_chat_page_has_new_chat_button(self):
+        response = self.client.get(reverse("index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "New Chat")
+
     def test_session_status_endpoint_is_database_free(self):
         response = self.client.post(
             reverse("get_session_status"),
