@@ -44,7 +44,10 @@ def chatbot(request):
         order_history = session.order_history or ""
 
     if session.is_human:
-        return
+        return JsonResponse({
+            "response": "A human agent has joined this chat.",
+            "escalated": True,
+        })
 
     try:
         initial_prompt = """
@@ -109,8 +112,8 @@ def chatbot(request):
 
 
 def operator_dashboard(request):
-    sessions = ChatMessage.objects.values_list("session_id", flat=True).distinct()
-    session_id = request.GET.get("session", sessions[0] if sessions else None)
+    sessions = list(ChatMessage.objects.order_by().values_list("session_id", flat=True).distinct())
+    session_id = request.GET.get("session") or (sessions[0] if sessions else None)
     messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp") if session_id else []
 
     is_human = False
@@ -167,8 +170,17 @@ def get_chat_history(request):
 @csrf_exempt
 def get_session_status(request):
     if request.method == "POST":
-        data = json.loads(request.body)
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
         session_id = data.get("session_id")
+        if not session_id:
+            return JsonResponse({"error": "Missing session_id"}, status=400)
+
         session = ChatSession.objects.filter(session_id=session_id).first()
         is_human = session.is_human if session else False
         return JsonResponse({"is_human": is_human})
+
+    return JsonResponse({"error": "Only POST method allowed"}, status=405)

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 import dotenv
+from urllib.parse import parse_qs, unquote, urlparse
 
 dotenv.load_dotenv()
 
@@ -24,13 +25,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-trinitychat-demo-key-change-me',
+)
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ['127.0.0.1', '.vercel.app']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost,.vercel.app').split(',')
+    if host.strip()
+]
 
 
 # Application definition
@@ -50,7 +58,7 @@ INSTALLED_APPS = [
 ]
 
 TAILWIND_APP_NAME = 'theme'
-NPM_BIN_PATH = "C:/Program Files/nodejs/npm.cmd"
+NPM_BIN_PATH = os.environ.get('NPM_BIN_PATH', 'npm.cmd' if os.name == 'nt' else 'npm')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -95,16 +103,55 @@ WSGI_APPLICATION = 'TrinityChat.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': os.environ.get('DB_ENGINE'),
-        'NAME': os.environ.get('DB_NAME') if os.environ.get('DB_NAME') else BASE_DIR / 'db.sqlite3',
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),  
-        'PORT': os.environ.get('DB_PORT'),
+def database_from_url(database_url):
+    parsed = urlparse(database_url)
+
+    if parsed.scheme in ('postgres', 'postgresql'):
+        config = {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path.lstrip('/'),
+            'USER': unquote(parsed.username or ''),
+            'PASSWORD': unquote(parsed.password or ''),
+            'HOST': parsed.hostname or '',
+            'PORT': parsed.port or '',
+        }
+
+        query = parse_qs(parsed.query)
+        sslmode = query.get('sslmode', [None])[0]
+        if sslmode:
+            config['OPTIONS'] = {'sslmode': sslmode}
+
+        return config
+
+    if parsed.scheme == 'sqlite':
+        return {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': parsed.path or BASE_DIR / 'db.sqlite3',
+        }
+
+    return None
+
+
+database_url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
+database_config = database_from_url(database_url) if database_url else None
+
+if database_config is None:
+    database_config = {
+        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3'),
+        'NAME': os.environ.get('DB_NAME') or BASE_DIR / 'db.sqlite3',
     }
-}
+
+    for setting_name, env_name in (
+        ('USER', 'DB_USER'),
+        ('PASSWORD', 'DB_PASSWORD'),
+        ('HOST', 'DB_HOST'),
+        ('PORT', 'DB_PORT'),
+    ):
+        value = os.environ.get(env_name)
+        if value:
+            database_config[setting_name] = value
+
+DATABASES = {'default': database_config}
 
 
 # Password validation
@@ -147,16 +194,13 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-    os.path.join(BASE_DIR, 'static_src'),
-]
-
-STATIC_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-    os.path.join(BASE_DIR, 'static_src'),
+    path for path in [
+        BASE_DIR / 'static',
+    ]
+    if path.exists()
 ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles', 'static')
