@@ -95,6 +95,18 @@ To set up and run the development server, follow these steps:
 
     Open your web browser and navigate to `http://127.0.0.1:8000` to view the website.
 
+## Vercel Deployment Notes
+
+- `build_files.sh` installs dependencies, builds Tailwind, and collects static files.
+- Database migrations are skipped during Vercel builds by default so deployments do not fail when an external database is temporarily unavailable.
+- Run migrations separately against your production database before using the dashboard:
+
+    ```bash
+    python manage.py migrate --noinput
+    ```
+
+- If you intentionally want Vercel to run migrations during the build, set `RUN_MIGRATIONS=1` in the Vercel environment variables. Only do this when the production database is reachable from Vercel.
+
 ## Notes
 
 - Ensure you have Python and Django installed on your system.
