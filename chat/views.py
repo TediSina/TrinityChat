@@ -1,10 +1,8 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 import google.generativeai as genai
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import ChatMessage, ChatSession
-import uuid
 import json
 
 
@@ -30,20 +28,12 @@ def chatbot(request):
     if not user_input:
         return JsonResponse({"error": "No message provided"}, status=400)
 
-    session_id = data.get("session_id", str(uuid.uuid4()))
     order_history = data.get("order_history", "").strip()
+    chat_history = data.get("history", [])
+    if not isinstance(chat_history, list):
+        chat_history = []
 
-    ChatMessage.objects.create(sender="user", message=user_input, session_id=session_id)
-
-    session, _ = ChatSession.objects.get_or_create(session_id=session_id)
-
-    if order_history:
-        session.order_history = order_history
-        session.save()
-    else:
-        order_history = session.order_history or ""
-
-    if session.is_human:
+    if data.get("is_human"):
         return JsonResponse({
             "response": "A human agent has joined this chat.",
             "escalated": True,
@@ -80,12 +70,19 @@ def chatbot(request):
         if order_history:
             initial_prompt += f"\n\nHere is the user's order history:\n{order_history}\n"
 
-        history = ChatMessage.objects.filter(session_id=session_id).order_by("-timestamp")[:5][::-1]
-        chat_history = "\n\n".join(
-            f"{'User' if msg.sender == 'user' else 'Bot'}: {msg.message}" for msg in history
-        )
+        formatted_history = []
+        for msg in chat_history[-8:]:
+            sender = msg.get("sender", "user")
+            label = {
+                "user": "User",
+                "bot": "Bot",
+                "human": "Human agent",
+            }.get(sender, sender.title())
+            formatted_history.append(f"{label}: {msg.get('message', '')}")
 
-        full_prompt = f"{initial_prompt}\n\nChat History:\n{chat_history}\n\nUser: {user_input}"
+        history_text = "\n\n".join(formatted_history)
+
+        full_prompt = f"{initial_prompt}\n\nChat History:\n{history_text}\n\nLatest user message: {user_input}"
 
         response = model.generate_content(full_prompt)
         ai_message = response.text.strip()
@@ -97,72 +94,23 @@ def chatbot(request):
         ])
 
         if keyword_trigger:
-            session.is_human = True
-            session.save()
-            ChatMessage.objects.create(sender="bot", message=ai_message, session_id=session_id)
             return JsonResponse({"response": ai_message, "escalated": True})
 
-        ChatMessage.objects.create(sender="bot", message=ai_message, session_id=session_id)
         return JsonResponse({"response": ai_message, "escalated": False})
 
     except Exception as e:
         print(f"Gemini error: {e}")
-        ChatMessage.objects.create(sender="bot", message="Oops! Something went wrong.", session_id=session_id)
         return JsonResponse({"response": "Oops! Something went wrong.", "escalated": False})
 
 
 def operator_dashboard(request):
-    sessions = list(ChatMessage.objects.order_by().values_list("session_id", flat=True).distinct())
-    session_id = request.GET.get("session") or (sessions[0] if sessions else None)
-    messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp") if session_id else []
-
-    is_human = False
-    order_history = ""
-    if session_id:
-        chat_session = ChatSession.objects.filter(session_id=session_id).first()
-        if chat_session:
-            is_human = chat_session.is_human
-            order_history = chat_session.order_history or ""
-
-    if request.method == "POST":
-        reply = request.POST.get("reply")
-        session_id = request.GET.get("session")
-        if session_id and reply:
-            ChatMessage.objects.create(sender="human", message=reply, session_id=session_id)
-            ChatSession.objects.update_or_create(session_id=session_id, defaults={"is_human": True})
-
-    return render(request, "chat/dashboard.html", {
-        "messages": messages,
-        "sessions": sessions,
-        "current": session_id,
-        "is_human": is_human,
-        "order_history": order_history,
-    })
+    return render(request, "chat/dashboard.html", {})
 
 
 @csrf_exempt
 def get_chat_history(request):
     if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            session_id = data.get("session_id")
-            if not session_id:
-                return JsonResponse({"error": "Missing session_id"}, status=400)
-
-            messages = ChatMessage.objects.filter(session_id=session_id).order_by("timestamp")
-            session = ChatSession.objects.filter(session_id=session_id).first()
-
-            chat_data = [
-                {"sender": msg.sender, "message": msg.message, "timestamp": msg.timestamp.isoformat()}
-                for msg in messages
-            ]
-            return JsonResponse({
-                "chat": chat_data,
-                "order_history": session.order_history if session else ""
-            })
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse({"chat": [], "order_history": ""})
 
     return JsonResponse({"error": "Only POST method allowed"}, status=405)
 
@@ -170,17 +118,6 @@ def get_chat_history(request):
 @csrf_exempt
 def get_session_status(request):
     if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-        session_id = data.get("session_id")
-        if not session_id:
-            return JsonResponse({"error": "Missing session_id"}, status=400)
-
-        session = ChatSession.objects.filter(session_id=session_id).first()
-        is_human = session.is_human if session else False
-        return JsonResponse({"is_human": is_human})
+        return JsonResponse({"is_human": False})
 
     return JsonResponse({"error": "Only POST method allowed"}, status=405)

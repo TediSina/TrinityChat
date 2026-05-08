@@ -2,94 +2,157 @@
 {% block content %}
   <h1 class="text-2xl font-bold mb-4">Operator Dashboard</h1>
 
-  <form method="get" class="mb-4">
-    <select name="session" onchange="this.form.submit()" class="border p-2">
-      {% for session in sessions %}
-        <option value="{{ session }}" {% if session == current %}selected{% endif %}>Session {{ forloop.counter }}</option>
-      {% endfor %}
-    </select>
-  </form>
-
-  <p id="session-status" class="font-semibold mb-2">
-    {% if is_human %}
-      <span class="text-green-600">🧑‍💻 This session is currently in Human Mode.</span>
-    {% else %}
-      <span class="text-yellow-600">🤖 This session is being handled by the Bot.</span>
-    {% endif %}
-  </p>
-
-  <div id="chat-box" class="border p-4 h-64 overflow-y-scroll mb-4 bg-white rounded shadow" data-session-id="{{ current }}">
-    {% for message in messages %}
-      <p><strong class="capitalize">{{ message.sender }}:</strong> {{ message.message }}</p>
-    {% endfor %}
+  <div class="mb-4">
+    <select id="session-select" class="border p-2 rounded min-w-48"></select>
   </div>
 
-  {% if order_history %}
+  <p id="session-status" class="font-semibold mb-2 text-yellow-600">This session is being handled by the Bot.</p>
+
+  <div id="chat-box" class="border p-4 h-64 overflow-y-scroll mb-4 bg-white rounded shadow"></div>
+
   <div class="border p-4 bg-gray-50 rounded shadow mb-4">
-    <h2 class="font-semibold text-lg mb-2">🧾 Order History</h2>
-    <pre class="whitespace-pre-wrap text-sm">{{ order_history }}</pre>
+    <h2 class="font-semibold text-lg mb-2">Order History</h2>
+    <pre id="order-history" class="whitespace-pre-wrap text-sm text-gray-700"></pre>
   </div>
-  {% else %}
-    <div class="border p-4 bg-gray-50 rounded shadow mb-4">
-      <h2 class="font-semibold text-lg mb-2">🧾 Order History</h2>
-      <p class="text-sm text-gray-500">No order history available for this session.</p>
-    </div>
-  {% endif %}
 
-  <form method="post">
-    {% csrf_token %}
-    <textarea name="reply" rows="2" class="w-full p-2 border rounded" placeholder="Type human response..."></textarea>
+  <form id="reply-form">
+    <textarea id="reply" rows="2" class="w-full p-2 border rounded" placeholder="Type human response..."></textarea>
     <button class="mt-2 px-4 py-2 bg-blue-600 text-white rounded">Send</button>
   </form>
 
   <script>
-    const chatBox = document.getElementById("chat-box");
-    const sessionId = chatBox.dataset.sessionId;
-    const sessionStatus = document.getElementById("session-status");
-  
-    function fetchChatHistory(sessionId) {
-      fetch("/get_chat_history/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": "{{ csrf_token }}"
-        },
-        body: JSON.stringify({ session_id: sessionId })
-      })
-      .then(res => res.json())
-      .then(data => {
-        chatBox.innerHTML = "";
-        data.chat.forEach(msg => {
-          chatBox.innerHTML += `<p><strong class="capitalize">${msg.sender}:</strong> ${msg.message}</p>`;
-        });
-        chatBox.scrollTop = chatBox.scrollHeight;
+    const STORAGE_KEY = 'trinitychat_sessions';
+    const sessionSelect = document.getElementById('session-select');
+    const sessionStatus = document.getElementById('session-status');
+    const chatBox = document.getElementById('chat-box');
+    const orderHistory = document.getElementById('order-history');
+    const replyForm = document.getElementById('reply-form');
+    const replyInput = document.getElementById('reply');
+
+    function loadSessions() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function saveSession(session) {
+      const sessions = loadSessions();
+      session.updatedAt = new Date().toISOString();
+      sessions[session.id] = session;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    }
+
+    function sortedSessions() {
+      return Object.values(loadSessions()).sort((a, b) => {
+        return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
       });
     }
-  
-    function fetchSessionStatus(sessionId) {
-      fetch("/get_session_status/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": "{{ csrf_token }}"
-        },
-        body: JSON.stringify({ session_id: sessionId })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.is_human) {
-          sessionStatus.innerHTML = '<span class="text-green-600">🧑‍💻 This session is currently in Human Mode.</span>';
-        } else {
-          sessionStatus.innerHTML = '<span class="text-yellow-600">🤖 This session is being handled by the Bot.</span>';
-        }
+
+    function selectedSessionId() {
+      return sessionSelect.value || new URLSearchParams(window.location.search).get('session');
+    }
+
+    function setStatus(session) {
+      sessionStatus.textContent = session.isHuman
+        ? 'This session is currently in Human Mode.'
+        : 'This session is being handled by the Bot.';
+      sessionStatus.className = session.isHuman
+        ? 'font-semibold mb-2 text-green-600'
+        : 'font-semibold mb-2 text-yellow-600';
+    }
+
+    function renderMessage(message) {
+      const row = document.createElement('p');
+      const label = document.createElement('strong');
+      label.className = 'capitalize';
+      label.textContent = `${message.sender}: `;
+      row.appendChild(label);
+      row.appendChild(document.createTextNode(message.message));
+      chatBox.appendChild(row);
+    }
+
+    function renderSessionSelect(currentId) {
+      const sessions = sortedSessions();
+      sessionSelect.innerHTML = '';
+
+      if (sessions.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No sessions yet';
+        sessionSelect.appendChild(option);
+        return null;
+      }
+
+      const activeId = currentId && sessions.some(session => session.id === currentId)
+        ? currentId
+        : sessions[0].id;
+
+      sessions.forEach((session, index) => {
+        const option = document.createElement('option');
+        option.value = session.id;
+        option.textContent = `Session ${index + 1}`;
+        option.selected = session.id === activeId;
+        sessionSelect.appendChild(option);
       });
+
+      return activeId;
     }
-  
-    if (sessionId) {
-      setInterval(() => {
-        fetchChatHistory(sessionId);
-        fetchSessionStatus(sessionId);
-      }, 2000);
+
+    function renderDashboard() {
+      const activeId = renderSessionSelect(selectedSessionId());
+      const sessions = loadSessions();
+      const session = activeId ? sessions[activeId] : null;
+
+      chatBox.innerHTML = '';
+      if (!session) {
+        setStatus({ isHuman: false });
+        chatBox.textContent = 'No chat sessions yet.';
+        orderHistory.textContent = 'No order history available for this session.';
+        return;
+      }
+
+      session.messages.forEach(renderMessage);
+      setStatus(session);
+      orderHistory.textContent = session.orderHistory || 'No order history available for this session.';
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    sessionSelect.addEventListener('change', () => {
+      const url = new URL(window.location.href);
+      if (sessionSelect.value) {
+        url.searchParams.set('session', sessionSelect.value);
+      } else {
+        url.searchParams.delete('session');
+      }
+      window.history.replaceState({}, '', url);
+      renderDashboard();
+    });
+
+    replyForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const message = replyInput.value.trim();
+      const sessions = loadSessions();
+      const session = sessions[selectedSessionId()];
+
+      if (!session || !message) {
+        return;
+      }
+
+      session.isHuman = true;
+      session.messages.push({
+        sender: 'human',
+        message,
+        timestamp: new Date().toISOString()
+      });
+      saveSession(session);
+      replyInput.value = '';
+      renderDashboard();
+    });
+
+    window.addEventListener('storage', renderDashboard);
+    window.addEventListener('DOMContentLoaded', renderDashboard);
+    setInterval(renderDashboard, 1000);
   </script>
 {% endblock %}

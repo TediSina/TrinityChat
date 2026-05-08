@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="max-w-xl mx-auto p-4">
+  <p id="session-status" class="font-semibold mb-2 text-yellow-600">This session is being handled by the Bot.</p>
   <div id="chat-box" class="space-y-2 mb-4 border p-4 h-80 overflow-y-auto bg-gray-100 rounded"></div>
 
   <form id="chat-form" class="flex flex-col">
@@ -11,23 +12,118 @@
 </div>
 
 <script>
+  const STORAGE_KEY = 'trinitychat_sessions';
+  const CURRENT_SESSION_KEY = 'session_id';
   const form = document.getElementById('chat-form');
   const chatBox = document.getElementById('chat-box');
+  const sessionStatus = document.getElementById('session-status');
+  const orderHistoryInput = document.getElementById('orderHistory');
 
-  if (!localStorage.getItem('session_id')) {
-    localStorage.setItem('session_id', crypto.randomUUID());
+  function newId() {
+    if (window.crypto && window.crypto.randomUUID) {
+      return window.crypto.randomUUID();
+    }
+    return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
-  const sessionId = localStorage.getItem('session_id');
+  function loadSessions() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveSession(session) {
+    const sessions = loadSessions();
+    session.updatedAt = new Date().toISOString();
+    sessions[session.id] = session;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  }
+
+  function getSession() {
+    let sessionId = localStorage.getItem(CURRENT_SESSION_KEY);
+    if (!sessionId) {
+      sessionId = newId();
+      localStorage.setItem(CURRENT_SESSION_KEY, sessionId);
+    }
+
+    const sessions = loadSessions();
+    if (!sessions[sessionId]) {
+      sessions[sessionId] = {
+        id: sessionId,
+        messages: [],
+        orderHistory: '',
+        isHuman: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    }
+
+    return sessions[sessionId];
+  }
+
+  function appendMessage(session, sender, message) {
+    session.messages.push({
+      sender,
+      message,
+      timestamp: new Date().toISOString()
+    });
+    saveSession(session);
+  }
+
+  function renderMessage(message) {
+    const row = document.createElement('div');
+    const label = document.createElement('strong');
+    label.className = 'capitalize';
+    label.textContent = `${message.sender}: `;
+    row.appendChild(label);
+    row.appendChild(document.createTextNode(message.message));
+    chatBox.appendChild(row);
+  }
+
+  function renderSession() {
+    const session = getSession();
+    chatBox.innerHTML = '';
+    session.messages.forEach(renderMessage);
+    sessionStatus.textContent = session.isHuman
+      ? 'This session is currently in Human Mode.'
+      : 'This session is being handled by the Bot.';
+    sessionStatus.className = session.isHuman
+      ? 'font-semibold mb-2 text-green-600'
+      : 'font-semibold mb-2 text-yellow-600';
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    if (document.activeElement !== orderHistoryInput) {
+      orderHistoryInput.value = session.orderHistory || '';
+    }
+  }
+
+  orderHistoryInput.addEventListener('change', () => {
+    const session = getSession();
+    session.orderHistory = orderHistoryInput.value.trim();
+    saveSession(session);
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const input = document.getElementById('message');
-    const orderHistory = document.getElementById("orderHistory").value;
-    const userMessage = input.value;
+    const userMessage = input.value.trim();
+    if (!userMessage) {
+      return;
+    }
 
-    chatBox.innerHTML += `<div><strong>User:</strong> ${userMessage}</div>`;
+    const session = getSession();
+    session.orderHistory = orderHistoryInput.value.trim();
+    appendMessage(session, 'user', userMessage);
+    renderSession();
+
     input.value = "";
+
+    if (session.isHuman) {
+      return;
+    }
 
     const response = await fetch('/chatbot/', {
       method: 'POST',
@@ -35,49 +131,23 @@
         'Content-Type': 'application/json',
         'X-CSRFToken': '{{ csrf_token }}'
       },
-      body: JSON.stringify({ message: userMessage, session_id: sessionId, order_history: orderHistory })
+      body: JSON.stringify({
+        message: userMessage,
+        order_history: session.orderHistory,
+        history: session.messages.slice(-8),
+        is_human: session.isHuman
+      })
     });
 
     const data = await response.json();
-    chatBox.innerHTML += `<div><strong>Bot:</strong> ${data.response}</div>`;
-    chatBox.scrollTop = chatBox.scrollHeight;
+    appendMessage(session, 'bot', data.response || 'Oops! Something went wrong.');
+    session.isHuman = Boolean(data.escalated);
+    saveSession(session);
+    renderSession();
   });
 
-  window.addEventListener('DOMContentLoaded', () => {
-    fetch('/get_chat_history/', {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": '{{ csrf_token }}'
-      },
-      body: JSON.stringify({ session_id: sessionId })
-    })
-    .then(res => res.json())
-    .then(data => {
-      const orderHistoryTextarea = document.getElementById('orderHistory');
-      if (orderHistoryTextarea && data.order_history !== undefined) {
-        orderHistoryTextarea.value = data.order_history;
-      }
-    });
-  });
-
-  setInterval(() => {
-    fetch('/get_chat_history/', {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": '{{ csrf_token }}'
-      },
-      body: JSON.stringify({ session_id: sessionId })
-    })
-    .then(res => res.json())
-    .then(data => {
-      chatBox.innerHTML = "";
-      data.chat.forEach(msg => {
-        chatBox.innerHTML += `<div><strong class="capitalize">${msg.sender}:</strong> ${msg.message}</div>`;
-      });
-      chatBox.scrollTop = chatBox.scrollHeight;
-    });
-  }, 2000);
+  window.addEventListener('storage', renderSession);
+  window.addEventListener('DOMContentLoaded', renderSession);
+  setInterval(renderSession, 1000);
 </script>
 {% endblock content %}

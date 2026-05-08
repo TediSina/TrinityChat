@@ -98,14 +98,9 @@ To set up and run the development server, follow these steps:
 ## Vercel Deployment Notes
 
 - `build_files.sh` installs dependencies, builds Tailwind, and collects static files.
-- Database migrations are skipped during Vercel builds by default so deployments do not fail when an external database is temporarily unavailable.
-- Run migrations separately against your production database before using the dashboard:
-
-    ```bash
-    python manage.py migrate --noinput
-    ```
-
-- If you intentionally want Vercel to run migrations during the build, set `RUN_MIGRATIONS=1` in the Vercel environment variables. Only do this when the production database is reachable from Vercel.
+- The deployed demo stores chat sessions in the browser with `localStorage`, so it does not need Railway, Postgres, or build-time migrations.
+- The chat page and Dashboard share demo data inside the same browser. Open both pages in the same browser profile when presenting the demo.
+- For a real multi-device operator dashboard, connect a free Postgres provider from the Vercel Marketplace, such as Neon or Supabase, then re-enable server-side persistence.
 
 ## Notes
 
